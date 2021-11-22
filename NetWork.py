@@ -26,14 +26,8 @@ class ResNet(nn.Module):
         Architecture:
         layer_name      | start | stack1 | stack2 | stack3 | output      |
         output_map_size | 32x32 | 32X32  | 16x16  | 8x8    | 1x1         |
-        #layers         | 1     | 2n     | 2n     | 2n     | 1           |
-        #filters        | 16    | 16     | 32     | 64     | num_classes |
-
-        n = #residual_blocks in each stack layer = self.resnet_size
-        The standard_block has 2 layers each.
-        
-        Example of replacing:
-        standard_block      conv3-16 + conv3-16
+        #layers         | 1     | 3n     | 3n     | 3n     | 1           |
+        #filters        | 128   | 128    | 256    | 512    | num_classes |
 
         Args:
             inputs: A Tensor representing a batch of input images.
@@ -54,7 +48,7 @@ class ResNet(nn.Module):
             eps=1e-5, 
             momentum=0.997,
         )
-        block_fn = standard_block
+        block_fn = bottleneck_block
 
         self.stack_layers = nn.ModuleList()
         
@@ -96,7 +90,8 @@ class batch_norm_relu_layer(nn.Module):
         return out
         
 
-class standard_block(nn.Module):
+
+class bottleneck_block(nn.Module):
     """ Creates a standard residual block for ResNet.
 
     Args:
@@ -110,19 +105,25 @@ class standard_block(nn.Module):
             first block layer of the model.
     """
     def __init__(self, filters, projection_shortcut, strides, first_num_filters) -> None:
-        super(standard_block, self).__init__()
+        super(bottleneck_block, self).__init__()
+
         
         self.projection_shortcut = projection_shortcut
         self.BNSB = nn.BatchNorm2d(filters)
+        self.relu = nn.ReLU(inplace=True)
         
-        self.convSB1 = nn.Conv2d(filters, filters, 3, 1,1, bias=False)
-        self.BNSB1 = nn.BatchNorm2d(filters)
+        self.convSB1 = nn.Conv2d(filters, filters//4, 1, 1, bias=False)
+        self.BNSB1 = nn.BatchNorm2d(filters//4)
         self.reluSB1 = nn.ReLU(inplace=True)
         
+        self.convBot = Conv2d(filters//4, filters//4, 3, 1,1, bias=False)
+        self.BNBot = nn.BatchNorm2d(filters//4)
+        self.reluBot = nn.ReLU(inplace=True)
         
-        self.convSB2 = nn.Conv2d(filters, filters, 3, 1,1, bias=False)
-        self.BNSB2 = nn.BatchNorm2d(filters)
-        self.reluSB2 = nn.Sigmoid()
+        self.convSB2 = nn.Conv2d(filters//4, filters, 1, 1, bias=False)
+        # self.BNSB2 = nn.BatchNorm2d(filters)
+        # self.reluSB2 = nn.ReLU(inplace=True)
+        # Sigmoid check
 
         
 
@@ -133,18 +134,22 @@ class standard_block(nn.Module):
             # print("Inside projection")
             shortcut = self.projection_shortcut(inputs)
             shortcut = self.BNSB(shortcut)
+            shortcut = self.relu(shortcut)
+
 
         out = self.convSB1(shortcut)
         out = self.BNSB1(out)
         out = self.reluSB1(out)
 
+        out = self.convBot(out)
+        out = self.BNBot(out)
+        out = self.reluBot(out)
+
         out = self.convSB2(out)
-        out = self.BNSB2(out)
+        # out = self.BNSB2(out)
         
         out = out + shortcut
-        out = self.reluSB2(out)
-
-        # self.projection_shortcut = None
+        # out = self.reluSB2(out)
 
         return out
         
@@ -154,7 +159,7 @@ class stack_layer(nn.Module):
     Args:
         filters: A positive integer. The number of filters for the first
 			    convolution in a block.
-		block_fn: 'standard_block' or 'bottleneck_block'.
+		block_fn: 'standard_block'
 		strides: A positive integer. The stride to use for the first block. If
 				greater than 1, this layer will ultimately downsample the input.
         resnet_size: #residual_blocks in each stack layer
@@ -207,14 +212,16 @@ class output_layer(nn.Module):
         
         
         self.avgPool = nn.AdaptiveAvgPool2d((1,1))
+
+        self.dropout = nn.Dropout(0.25)
+
         self.fc1 = nn.Linear(filters, num_classes, bias=True)
-        # self.softmax = nn.Softmax(dim=-1)
         
     
     def forward(self, inputs: Tensor) -> Tensor:
         out = self.avgPool(inputs)
         out = out.view(out.size(0), -1)
+        out = self.dropout(out)
         out = self.fc1(out)
-        # out = self.softmax(out)
 
         return out
