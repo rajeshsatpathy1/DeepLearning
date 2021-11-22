@@ -13,15 +13,12 @@ class ResNet(nn.Module):
             first_num_filters,
         ):
         """
-        1. Define hyperparameters.
         Args:
             resnet_size: A positive integer (n).
             num_classes: A positive integer. Define the number of classes.
             first_num_filters: An integer. The number of filters to use for the
                 first block layer of the model. This number is then doubled
                 for each subsampling block layer.
-        
-        2. Classify a batch of input images.
 
         Architecture:
         layer_name      | start | stack1 | stack2 | stack3 | output      |
@@ -92,7 +89,7 @@ class batch_norm_relu_layer(nn.Module):
 
 
 class bottleneck_block(nn.Module):
-    """ Creates a standard residual block for ResNet.
+    """ Creates a bottleneck residual block for ResNet.
 
     Args:
         filters: A positive integer. The number of filters for the first 
@@ -107,7 +104,7 @@ class bottleneck_block(nn.Module):
     def __init__(self, filters, projection_shortcut, strides, first_num_filters) -> None:
         super(bottleneck_block, self).__init__()
 
-        
+        # Pre-activation
         self.projection_shortcut = projection_shortcut
         self.BNSB = nn.BatchNorm2d(filters)
         self.relu = nn.ReLU(inplace=True)
@@ -121,9 +118,6 @@ class bottleneck_block(nn.Module):
         self.reluBot = nn.ReLU(inplace=True)
         
         self.convSB2 = nn.Conv2d(filters//4, filters, 1, 1, bias=False)
-        # self.BNSB2 = nn.BatchNorm2d(filters)
-        # self.reluSB2 = nn.ReLU(inplace=True)
-        # Sigmoid check
 
         
 
@@ -146,20 +140,18 @@ class bottleneck_block(nn.Module):
         out = self.reluBot(out)
 
         out = self.convSB2(out)
-        # out = self.BNSB2(out)
         
         out = out + shortcut
-        # out = self.reluSB2(out)
 
         return out
         
 class stack_layer(nn.Module):
-    """ Creates one stack of standard blocks or bottleneck blocks.
+    """ Creates one stack of bottleneck blocks.
 
     Args:
         filters: A positive integer. The number of filters for the first
 			    convolution in a block.
-		block_fn: 'standard_block'
+		block_fn: 'bottleneck_block'
 		strides: A positive integer. The stride to use for the first block. If
 				greater than 1, this layer will ultimately downsample the input.
         resnet_size: #residual_blocks in each stack layer
