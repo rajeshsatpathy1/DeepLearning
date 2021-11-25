@@ -17,11 +17,11 @@ def parse_record(record, training):
     Returns:
         image: An array of shape [32, 32, 3].
     """
-    # convert the image from array of [3072,] to [3, 32, 32] of [depth, height, width]
+    # convert the image from array of [3072,] to a 3-D image of [3, 32, 32] --> [depth, height, width]
     depth_major = record.reshape((3, 32, 32))
-    # convert the image into [height, width, depth]
+    # convert image into [height, width, depth]
     image = np.transpose(depth_major, [1, 2, 0])
-    # preprocess the test/train image
+    # preprocess the training image (or testing image with normalization)
     image = preprocess_image(image, training)
 
     return image
@@ -56,7 +56,7 @@ def preprocess_image(image, training):
     return image
 
 
-def preprocess_private_test(image):
+def preprocess_test(image):
     image = image.reshape(32,32,3)
     transform_image = transforms.Compose([
         transforms.ToTensor(),

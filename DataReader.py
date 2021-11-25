@@ -50,6 +50,11 @@ def load_data(data_dir):
     y_test = np.array(test_batch[b'labels'])
 
     print('Train data shape:',x_train.shape, '|Train data labels shape:', y_train.shape, '|Test data shape:', x_test.shape, '|Test data labels shape:', y_test.shape)
+    # print(len(dict1[b'data'][0]))
+    # print(dict2[b'batch_label'])    #Batch label unnecessary
+    # print(len(dict[b'batch_label']), len(dict[b'labels']), len(dict[b'data']),len(dict[b'filenames']))
+    # dict.keys() - [b'batch_label', b'labels', b'data', b'filenames']
+    ### YOUR CODE HERE
 
     return x_train, y_train, x_test, y_test
 
